@@ -139,6 +139,28 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (int, error) {
 					"expected histogram in metric %s %s", name, metric,
 				)
 			}
+			n, err = writeSample(
+				name+"_sum", metric, "", "",
+				metric.Histogram.GetSampleSum(),
+				out,
+			)
+			if err != nil {
+				return written, err
+			}
+			written += n
+			n, err = writeSample(
+				name+"_count", metric, "", "",
+				float64(metric.Histogram.GetSampleCount()),
+				out,
+			)
+			if err != nil {
+				return written, err
+			}
+			if metric.Histogram.GetSampleCount() < 1000 {
+				// skip write buckets if sample count is not enough
+				break
+			}
+
 			infSeen := false
 			for _, q := range metric.Histogram.Bucket {
 				n, err = writeSample(
@@ -167,20 +189,6 @@ func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (int, error) {
 				}
 				written += n
 			}
-			n, err = writeSample(
-				name+"_sum", metric, "", "",
-				metric.Histogram.GetSampleSum(),
-				out,
-			)
-			if err != nil {
-				return written, err
-			}
-			written += n
-			n, err = writeSample(
-				name+"_count", metric, "", "",
-				float64(metric.Histogram.GetSampleCount()),
-				out,
-			)
 		default:
 			return written, fmt.Errorf(
 				"unexpected type in metric %s %s", name, metric,
